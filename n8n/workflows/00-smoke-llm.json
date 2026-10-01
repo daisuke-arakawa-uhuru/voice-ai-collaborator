@@ -1,0 +1,35 @@
+{
+  "name": "00 - LLM 疎通スモークテスト（LM Studio）",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "b1a1e0a0-0000-4000-8000-000000000001",
+      "name": "手動実行",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [260, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:1234/v1/chat/completions",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"google/gemma-4-e4b\",\n  \"messages\": [\n    { \"role\": \"user\", \"content\": \"日本語で『n8n→LM Studio 疎通OK』とだけ返して\" }\n  ],\n  \"stream\": false,\n  \"max_tokens\": 1500\n}",
+        "options": {}
+      },
+      "id": "b1a1e0a0-0000-4000-8000-000000000002",
+      "name": "LM Studio 呼び出し",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [500, 300]
+    }
+  ],
+  "connections": {
+    "手動実行": {
+      "main": [[{ "node": "LM Studio 呼び出し", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" }
+}

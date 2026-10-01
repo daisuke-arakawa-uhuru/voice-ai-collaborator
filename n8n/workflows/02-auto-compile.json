@@ -1,0 +1,36 @@
+{
+  "name": "02 - 議事録ポーリング→整形ノート自動生成",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            { "field": "minutes", "minutesInterval": 1 }
+          ]
+        }
+      },
+      "id": "d3c3a2c2-0000-4000-8000-000000000001",
+      "name": "1分ごとに確認",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [260, 300]
+    },
+    {
+      "parameters": {
+        "command": "node /project/scripts/compile-note.mjs --all"
+      },
+      "id": "d3c3a2c2-0000-4000-8000-000000000002",
+      "name": "新規文字起こしを整形",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [500, 300]
+    }
+  ],
+  "connections": {
+    "1分ごとに確認": {
+      "main": [[{ "node": "新規文字起こしを整形", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" }
+}

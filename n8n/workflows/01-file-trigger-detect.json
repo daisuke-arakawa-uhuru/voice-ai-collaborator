@@ -1,0 +1,53 @@
+{
+  "name": "01 - 議事録フォルダ監視（検知テスト）",
+  "nodes": [
+    {
+      "parameters": {
+        "triggerOn": "folder",
+        "path": "/data/sources/transcripts",
+        "events": ["add"],
+        "options": {
+          "usePolling": true
+        }
+      },
+      "id": "c2b2f1b1-0000-4000-8000-000000000001",
+      "name": "議事録フォルダ監視",
+      "type": "n8n-nodes-base.localFileTrigger",
+      "typeVersion": 1,
+      "position": [260, 300]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a1",
+              "name": "detected_path",
+              "value": "={{ $json.path }}",
+              "type": "string"
+            },
+            {
+              "id": "a2",
+              "name": "event",
+              "value": "={{ $json.event }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "c2b2f1b1-0000-4000-8000-000000000002",
+      "name": "検知内容を確認",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [500, 300]
+    }
+  ],
+  "connections": {
+    "議事録フォルダ監視": {
+      "main": [[{ "node": "検知内容を確認", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" }
+}

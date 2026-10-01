@@ -1,0 +1,22 @@
+# ── 会議データ（顧客機密・個人情報を含みうる → git に絶対に乗せない）──
+# data/ 配下（録音・文字起こし=sources、整形ノート=wiki、未整理=inbox）は
+# 中身を追跡しない。ディレクトリ構造だけ .gitkeep で残す。
+data/**
+!data/**/
+!data/**/.gitkeep
+
+# ── シークレット / 環境変数 / 端末ローカル設定 ──
+.env
+config.env
+*.local
+secrets/
+
+# ── n8n ローカル状態（named volume を使うので通常は出ないが保険）──
+n8n_data/
+.n8n/
+
+# ── OS / エディタ ──
+.DS_Store
+*.swp
+.idea/
+.vscode/

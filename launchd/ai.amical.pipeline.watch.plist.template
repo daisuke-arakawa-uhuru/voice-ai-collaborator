@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- イベント駆動＋安全網: Amical DB が変わったら即実行（WatchPaths）。加えて StartInterval で
+     一定間隔でも実行し、WatchPaths の取りこぼし（Amical が DB を開いたまま WAL 書き込みするため
+     launchd のファイル監視が発火しないことがある）を確実に拾う。どちらかが起きれば pipeline 実行。 -->
+<!-- __PROJECT__ / __DB__ は scripts/schedule.sh が実パスへ置換して ~/Library/LaunchAgents に配置する -->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>ai.amical.pipeline.watch</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>__PROJECT__/scripts/pipeline.sh</string>
+  </array>
+  <key>WatchPaths</key>
+  <array>
+    <string>__DB__</string>
+    <string>__DB__-wal</string>
+    <string>__DB__-shm</string>
+  </array>
+  <!-- 安全網: WatchPaths が取りこぼしても 30 分ごとに必ず実行（pipeline は冪等なので無害）。 -->
+  <key>StartInterval</key>
+  <integer>1800</integer>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>ThrottleInterval</key>
+  <integer>30</integer>
+  <key>StandardOutPath</key>
+  <string>__PROJECT__/data/.logs/launchd.out.log</string>
+  <key>StandardErrorPath</key>
+  <string>__PROJECT__/data/.logs/launchd.err.log</string>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+  </dict>
+</dict>
+</plist>

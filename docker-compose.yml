@@ -1,0 +1,47 @@
+# voice-ai-collaborator — n8n オーケストレーション基盤
+# 文字起こし（data/sources/transcripts）を監視し、整形ノート化(data/wiki)を自動化する（全ローカル・外部起票なし）。
+# LLM 解析はホスト側の LM Studio（OpenAI互換API :1234）に委譲する（Ollama も差替可）。
+services:
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: amical-n8n
+    restart: unless-stopped
+    ports:
+      - "5678:5678"
+    environment:
+      # --- 基本 ---
+      - N8N_HOST=localhost
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=http
+      - N8N_WEBHOOK_URL=http://localhost:5678/
+      - GENERIC_TIMEZONE=Asia/Tokyo
+      - TZ=Asia/Tokyo
+      # --- 個人検証用なので診断/追跡は無効化 ---
+      - N8N_DIAGNOSTICS_ENABLED=false
+      - N8N_PERSONALIZATION_ENABLED=false
+      - N8N_VERSION_NOTIFICATIONS_ENABLED=false
+      - N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=true
+      # --- 既定で除外される executeCommand / localFileTrigger を有効化 ---
+      # （ローカル単一ユーザーの検証環境のため。Execute Command でローカル整形スクリプトを回す）
+      - NODES_EXCLUDE=[]
+      # --- ホスト側 LLM への接続先（コンテナ内からは host.docker.internal で母艦を指す）---
+      # LM Studio(:1234) を使用。Ollama に切替える場合は :11434 に変更。
+      - LLM_BASE_URL=http://host.docker.internal:1234/v1
+      - LLM_MODEL=google/gemma-4-e4b
+    extra_hosts:
+      # Linux でも host.docker.internal を解決できるように（Mac/Win は標準で解決可）
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - n8n_data:/home/node/.n8n
+      # 議事録・録音データをコンテナ内 /data にマウント（読み書き）
+      - ./data:/data
+      # ワークフロー JSON をコンテナから参照できるように（インポートは UI から行う）
+      - ./n8n/workflows:/workflows:ro
+      # Execute Command ノードから使うスクリプトと原則ファイル（読み取り専用）
+      - ./scripts:/project/scripts:ro
+      - ./SOUL.md:/project/SOUL.md:ro
+      - ./AGENT.md:/project/AGENT.md:ro
+
+volumes:
+  n8n_data:
+    name: amical_n8n_data

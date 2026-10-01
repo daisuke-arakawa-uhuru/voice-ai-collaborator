@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Amical 司令塔ダッシュボード</title>
+<style>
+  :root{--ink:#1a1a1a;--paper:#f7f5f0;--sub:#8a857c;--rule:#e0dcd2;--card:#fff;
+        --ok:#2c7a4b;--ng:#9c3323;--warn:#d99a00;--accent:#26305f;
+        --sans:"Hiragino Sans","Yu Gothic","Meiryo",sans-serif;--mono:ui-monospace,"SF Mono",Menlo,monospace;}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:var(--sans);color:var(--ink);background:var(--paper);padding:22px 26px 60px;font-size:14px}
+  h1{font-size:22px;font-weight:700;letter-spacing:.02em}
+  .muted{color:var(--sub);font-size:12px}
+  .row{display:flex;flex-wrap:wrap;gap:12px;margin:14px 0}
+  .card{background:var(--card);border:1px solid var(--rule);border-radius:12px;padding:14px 16px;min-width:210px;flex:1}
+  .card h3{font-size:12px;color:var(--sub);letter-spacing:.06em;font-weight:700;margin-bottom:8px;text-transform:uppercase}
+  .dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:7px;vertical-align:middle}
+  .dot.up{background:var(--ok)} .dot.down{background:var(--ng)} .dot.warn{background:var(--warn)}
+  .state{font-size:16px;font-weight:700}
+  .sub{color:var(--sub);font-size:12px;margin-top:4px;font-family:var(--mono);word-break:break-all}
+  button{font-family:var(--sans);font-size:13px;border:1px solid var(--accent);background:var(--accent);color:#fff;
+         border-radius:8px;padding:8px 14px;cursor:pointer}
+  button.ghost{background:#fff;color:var(--accent)}
+  button:active{transform:translateY(1px)}
+  .kpi{display:flex;gap:10px;flex-wrap:wrap}
+  .kpi .b{background:var(--card);border:1px solid var(--rule);border-radius:10px;padding:10px 16px;text-align:center;min-width:96px}
+  .kpi .n{font-size:26px;font-weight:700;font-family:var(--mono)}
+  .kpi .l{font-size:11px;color:var(--sub);margin-top:2px}
+  .kpi .b.hot .n{color:var(--ng)}
+  table{width:100%;border-collapse:collapse;margin-top:8px;background:var(--card);border:1px solid var(--rule);border-radius:10px;overflow:hidden}
+  th,td{text-align:left;padding:8px 12px;border-bottom:1px solid var(--rule);font-size:13px}
+  th{background:#efece5;color:var(--sub);font-size:11px;letter-spacing:.06em}
+  .badge{display:inline-block;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:700}
+  .st-researched{background:#e7f2ec;color:var(--ok)}
+  .st-compiled{background:#eef1f8;color:var(--accent)}
+  .st-exported{background:#fdf4e0;color:var(--warn)}
+  .st-db-only{background:#f7e7e2;color:var(--ng)}
+  .st-empty{background:#efece5;color:var(--sub)}
+  .flow-legend{font-size:12px;color:var(--sub);margin:4px 0 0}
+  .flow-legend b{color:var(--ink)}
+  #toast{position:fixed;right:20px;bottom:20px;background:var(--ink);color:#fff;padding:12px 18px;border-radius:10px;
+         font-size:13px;max-width:520px;opacity:0;transition:opacity .2s;pointer-events:none}
+  #toast.show{opacity:1}
+  h2{font-size:14px;margin:22px 0 6px;letter-spacing:.04em}
+  details{margin-top:6px} summary{cursor:pointer;color:var(--sub);font-size:12px}
+  pre{background:#111;color:#dfe;padding:12px;border-radius:8px;font-size:12px;overflow:auto;white-space:pre-wrap;margin-top:8px}
+</style>
+</head>
+<body>
+  <div style="display:flex;justify-content:space-between;align-items:baseline">
+    <h1>Amical 司令塔ダッシュボード</h1>
+    <span class="muted" id="stamp">…</span>
+  </div>
+  <div class="muted">会議 → Amical文字起こし → export → 整形 → 包括議事録 の全段を俯瞰・操作（すべてローカル）</div>
+
+  <!-- アプリ状態 -->
+  <div class="row" id="apps"></div>
+
+  <!-- 操作 -->
+  <div class="row" style="gap:8px">
+    <button onclick="act('start-all',this)">▶ 全部起動</button>
+    <button class="ghost" onclick="act('warmup-model',this)">モデル読込(warmup)</button>
+    <button onclick="act('run-pipeline',this)">⚙ 今すぐ取り込み実行</button>
+    <button class="ghost" onclick="act('open-notes',this)">議事録フォルダを開く</button>
+    <button class="ghost" onclick="act('check',this)">健全性チェック</button>
+    <span class="muted" style="align-self:center">個別:
+      <a href="#" onclick="act('start-lmstudio',this);return false">LM Studio</a> ・
+      <a href="#" onclick="act('start-amical',this);return false">Amical</a> ・
+      <a href="#" onclick="act('start-n8n',this);return false">n8n</a>
+    </span>
+  </div>
+
+  <!-- KPI -->
+  <h2>取り込みフローの俯瞰</h2>
+  <div class="kpi" id="kpi"></div>
+  <div class="flow-legend">段階: <b>DB内(未export)</b> → <b>export済(未整形)</b> → <b>整形済</b> → <b>包括済✓</b>（空録音は対象外）</div>
+
+  <!-- 日毎 -->
+  <h2>日毎</h2>
+  <div id="daily"></div>
+
+  <!-- 明細 -->
+  <h2>録音ごとの状態（最新60件）</h2>
+  <div id="items"></div>
+
+  <details><summary>健全性チェックの出力</summary><pre id="checkout">（「健全性チェック」ボタンで実行）</pre></details>
+
+  <div id="toast"></div>
+
+<script>
+const S={"researched":"包括済","compiled":"整形済","exported":"export済","db-only":"DB内","empty":"空"};
+function badge(st){return `<span class="badge st-${st}">${S[st]||st}</span>`}
+function dot(up){return `<span class="dot ${up?'up':'down'}"></span>`}
+
+async function load(){
+  let d; try{ d=await (await fetch('/api/status')).json(); }catch(e){ return; }
+  document.getElementById('stamp').textContent = '更新 '+d.generated_at;
+  const a=d.apps;
+  document.getElementById('apps').innerHTML = [
+    card('LM Studio', a.lm_studio.up, a.lm_studio.up?`compile: ${a.lm_studio.compile_model}<br>research: ${a.lm_studio.research_model}`:'サーバー停止 or Local Server OFF'),
+    card('Amical', a.amical.up, a.amical.up?'起動中':'停止中'),
+    card('n8n (任意)', a.n8n.up, a.n8n.detail||'停止中'),
+    pipeCard(a.pipeline),
+  ].join('');
+  const c=d.counts;
+  document.getElementById('kpi').innerHTML = [
+    kpi(c.total,'総録音'), kpi(c.researched,'包括済✓'), kpi(c.compiled,'整形のみ'),
+    kpi(c.pending,'未整形',c.pending>0), kpi(c.empty,'空録音'),
+  ].join('');
+  // daily
+  document.getElementById('daily').innerHTML = '<table><tr><th>日付</th><th>包括済</th><th>整形のみ</th><th>export済</th><th>DB内</th><th>空</th></tr>'+
+    d.daily.map(x=>`<tr><td>${x.date}</td><td>${x.researched}</td><td>${x.compiled}</td><td>${x.exported}</td><td>${x['db-only']}</td><td>${x.empty}</td></tr>`).join('')+'</table>';
+  // items
+  document.getElementById('items').innerHTML = '<table><tr><th>日時</th><th>状態</th><th>長さ</th><th>要約(先頭)</th></tr>'+
+    d.items.map(it=>`<tr><td>${it.date} ${it.time}</td><td>${badge(it.stage)}</td><td>${it.dur_s}s</td><td>${esc(it.title)}</td></tr>`).join('')+'</table>';
+}
+function card(name,up,sub){return `<div class="card"><h3>${name}</h3><div class="state">${dot(up)}${up?'稼働':'停止'}</div><div class="sub">${sub}</div></div>`}
+function pipeCard(p){
+  const up=p.loaded; let s=up?(p.running?'実行中…':'待機'):'未登録';
+  const sub=`登録:${up?'✔':'✗'} 最終終了:${p.last_exit??'-'}<br>最終実行:${p.last_run||'-'}`;
+  return `<div class="card"><h3>自動トリガー(launchd)</h3><div class="state"><span class="dot ${up?(p.running?'warn':'up'):'down'}"></span>${s}</div><div class="sub">${sub}</div></div>`;
+}
+function kpi(n,l,hot){return `<div class="b ${hot?'hot':''}"><div class="n">${n}</div><div class="l">${l}</div></div>`}
+function esc(s){return (s||'').replace(/[&<>]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]))}
+function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),5000)}
+async function act(name,el){
+  if(el&&el.disabled)return; if(el)el.disabled=true;
+  try{ const r=await (await fetch('/api/action/'+name,{method:'POST'})).json();
+    toast(r.message||(r.ok?'実行しました':'失敗'));
+    if(name==='check')document.getElementById('checkout').textContent=r.message||'';
+  }catch(e){ toast('通信エラー: '+e); }
+  setTimeout(()=>{if(el)el.disabled=false;},1500); load();
+}
+load(); setInterval(load, 5000);
+</script>
+</body>
+</html>
